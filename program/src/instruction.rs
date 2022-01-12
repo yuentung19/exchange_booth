@@ -15,7 +15,7 @@ pub enum ExchangeBoothInstruction {
     /// | 7     | ❌       | ❌     | system_program
     /// | 8     | ❌       | ❌     | token_program
     InititializeExchangeBooth {
-        // TODO
+        // no instruction data on purpose
      },
     Deposit {
         // TODO
