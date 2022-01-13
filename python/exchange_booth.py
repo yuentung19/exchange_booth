@@ -32,7 +32,7 @@ class InitExchangeBoothParams(NamedTuple):
 
 def init_exchange_booth(params: InitExchangeBoothParams) -> TransactionInstruction:
     # no data needed for init
-    data = b""
+    data = struct.pack("<B", 0)
 
     return TransactionInstruction(
         keys=[
@@ -135,7 +135,7 @@ def main_init(args, client) -> Tuple[Transaction, List[PublicKey]]:
         )
     )
 
-    signers = [fee_payer, admin]
+    signers = [fee_payer, admin, oracle, exchange_booth]
 
     return init_ixs, signers
 
@@ -158,12 +158,12 @@ def main():
     args = parser.parse_args()
 
     if args.command == "init":
-        tx, signers = main_init(args, client)
+        ixs, signers = main_init(args, client)
     else:
         raise RuntimeError(f"{args.command} not supported yet")
 
     result = client.send_transaction(
-        tx,
+        Transaction().add(*(ix for ix in ixs)),
         *signers,
         opts=TxOpts(
             skip_preflight=True,
