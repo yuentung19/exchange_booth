@@ -36,4 +36,7 @@ pub enum ExchangeBoothInstruction {
     CloseExchangeBooth {
         // TODO
     },
+    UpdateOracleExchangeRate {
+        exchange_rate_a_to_b: f64
+    }
 }
