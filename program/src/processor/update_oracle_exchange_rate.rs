@@ -25,7 +25,7 @@ pub fn process(
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let exchange_rate = ExchangeRate::try_from_slice(&oracle_account_info.data.borrow())
+    let mut exchange_rate = ExchangeRate::try_from_slice(&oracle_account_info.data.borrow())
         .map_err(|_| ExchangeBoothError::InvalidAccountData)?;
 
     exchange_rate.a_to_b = exchange_rate_a_to_b;
