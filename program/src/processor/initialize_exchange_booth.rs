@@ -1,7 +1,7 @@
 use solana_program::{
     account_info::{next_account_info, AccountInfo}, 
     entrypoint::ProgramResult, msg, program_error::ProgramError,
-    program::{invoke_signed},
+    program::{invoke, invoke_signed},
     program_pack::Pack,
     pubkey::Pubkey,
     system_instruction,
@@ -36,26 +36,26 @@ pub fn process(
     let vault_a = next_account_info(account_info_iter)?;
     let vault_b = next_account_info(account_info_iter)?;
     let mint_a = next_account_info(account_info_iter)?;
-    let mint_b = next_account_info(account_into_iter)?;
+    let mint_b = next_account_info(account_info_iter)?;
     let admin = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
 
     if !admin.is_signer {
-        msg!("error: Admin must be signer")
+        msg!("error: Admin must be signer");
         return Err(ExchangeBoothError::AccountMustBeSigner.into())
     }
 
     if !exchange_booth.is_writable {
-        msg!("error: exchange booth not writable")
+        msg!("error: exchange booth not writable");
         return Err(ExchangeBoothError::AccountMustBeWritable.into())
     }
     if !vault_a.is_writable {
-        msg!("error: vault-a not writable")
+        msg!("error: vault-a not writable");
         return Err(ExchangeBoothError::AccountMustBeWritable.into())
     }
     if !vault_b.is_writable {
-        msg!("error: vault-b not writable")
+        msg!("error: vault-b not writable");
         return Err(ExchangeBoothError::AccountMustBeWritable.into())
     }
 
@@ -111,6 +111,28 @@ pub fn process(
         &[admin.clone(), vault_a.clone(), system_program.clone()],
         &[&[admin.key.as_ref(), exchange_booth.key.as_ref(), mint_b.key.as_ref(),  &[bump_seed_b]]],
     )?;
+
+    // create the exchange booth
+    invoke(
+        &system_instruction::create_account(
+            admin.key,
+            exchange_booth.key,
+            Rent::get()?.minimum_balance(0),
+            128, // TODO: double check this later
+            admin.key, // TODO is it the admin or the program id?
+        ),
+        &[admin.clone(), exchange_booth.clone(), system_program.clone()],
+    )?;
+
+    // encode the exchange booth into a struct and pass that in as the data to the exchange booth account
+    let exchange_booth_struct = ExchangeBooth {
+        admin: *admin.key,
+        oracle: *oracle.key,
+        vault_a: *vault_a.key,
+        vault_b: *vault_b.key, 
+    };
+    let encoded_exchange_booth = exchange_booth_struct.try_to_vec().unwrap();
+
 
     //allocate vaults on the fly
 
