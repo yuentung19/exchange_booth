@@ -108,7 +108,7 @@ pub fn process(
             Account::LEN as u64,
             token_program.key, // token program needs to be the owner of the vaults
         ),
-        &[admin.clone(), vault_a.clone(), system_program.clone()],
+        &[admin.clone(), vault_b.clone(), system_program.clone()],
         &[&[admin.key.as_ref(), exchange_booth.key.as_ref(), mint_b.key.as_ref(),  &[bump_seed_b]]],
     )?;
 
