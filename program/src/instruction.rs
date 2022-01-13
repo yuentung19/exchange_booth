@@ -46,7 +46,7 @@ pub enum ExchangeBoothInstruction {
     /// Accounts:
     /// | index | writable | signer | description                                                                                         |
     /// |-------|----------|--------|-----------------------------------------------------------------------------------------------------|
-    /// | 0     | ✅       | ❌     | exchange_booth: account that the ExchangeBooth struct will be written to
+    /// | 0     | ✅       | ❌     | oracle: contains the ExchangeRate struct in the data
     UpdateOracleExchangeRate {
         exchange_rate_a_to_b: f64
     }

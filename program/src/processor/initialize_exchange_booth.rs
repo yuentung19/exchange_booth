@@ -1,7 +1,8 @@
 use solana_program::{
     account_info::{next_account_info, AccountInfo}, 
-    entrypoint::ProgramResult, msg, program_error::ProgramError,
-    program::{invoke_signed},
+    entrypoint::ProgramResult,
+    msg,
+    program::{invoke, invoke_signed},
     program_pack::Pack,
     pubkey::Pubkey,
     system_instruction,
@@ -20,8 +21,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 pub fn process(
     program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    // ???
+    accounts: &[AccountInfo]
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     // 1. admin account [S]
@@ -36,26 +36,25 @@ pub fn process(
     let vault_a = next_account_info(account_info_iter)?;
     let vault_b = next_account_info(account_info_iter)?;
     let mint_a = next_account_info(account_info_iter)?;
-    let mint_b = next_account_info(account_into_iter)?;
+    let mint_b = next_account_info(account_info_iter)?;
     let admin = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
 
     if !admin.is_signer {
-        msg!("error: Admin must be signer")
+        msg!("error: Admin must be signer");
         return Err(ExchangeBoothError::AccountMustBeSigner.into())
     }
-
     if !exchange_booth.is_writable {
-        msg!("error: exchange booth not writable")
+        msg!("error: exchange booth not writable");
         return Err(ExchangeBoothError::AccountMustBeWritable.into())
     }
     if !vault_a.is_writable {
-        msg!("error: vault-a not writable")
+        msg!("error: vault-a not writable");
         return Err(ExchangeBoothError::AccountMustBeWritable.into())
     }
     if !vault_b.is_writable {
-        msg!("error: vault-b not writable")
+        msg!("error: vault-b not writable");
         return Err(ExchangeBoothError::AccountMustBeWritable.into())
     }
 
@@ -85,18 +84,18 @@ pub fn process(
         return Err(ExchangeBoothError::InvalidAccountAddress.into())
     }
 
-    // Now we allocate a pda initialized with the length of the token program struct
+    // Now we allocate a PDA initialized with the length of the token program struct
     // and assign the owner to the token program
     invoke_signed(
         &system_instruction::create_account(
             admin.key,
             vault_a.key,
-            Rent::get()?.minimum_balance(0),
+            Rent::get()?.minimum_balance(Account::LEN),
             Account::LEN as u64, 
-            token_program.key, // token program needs to be the owner of the vaults
+            token_program.key // token program needs to be the owner of the vaults
         ),
         &[admin.clone(), vault_a.clone(), system_program.clone()],
-        &[&[admin.key.as_ref(), exchange_booth.key.as_ref(), mint_a.key.as_ref(),  &[bump_seed_a]]],
+        &[&[admin.key.as_ref(), exchange_booth.key.as_ref(), mint_a.key.as_ref(),  &[bump_seed_a]]]
     )?;
 
     // repeat for vault b
@@ -104,13 +103,23 @@ pub fn process(
         &system_instruction::create_account(
             admin.key,
             vault_b.key,
-            Rent::get()?.minimum_balance(0),
+            Rent::get()?.minimum_balance(Account::LEN),
             Account::LEN as u64,
-            token_program.key, // token program needs to be the owner of the vaults
+            token_program.key
         ),
         &[admin.clone(), vault_b.clone(), system_program.clone()],
-        &[&[admin.key.as_ref(), exchange_booth.key.as_ref(), mint_b.key.as_ref(),  &[bump_seed_b]]],
+        &[&[admin.key.as_ref(), exchange_booth.key.as_ref(), mint_b.key.as_ref(),  &[bump_seed_b]]]
     )?;
+
+    // encode the exchange booth into a struct and pass that in as the data to the exchange booth account
+    let exchange_booth_struct = ExchangeBooth {
+        admin: *admin.key,
+        oracle: *oracle.key,
+        vault_a: *vault_a.key,
+        vault_b: *vault_b.key
+    };
+
+    exchange_booth_struct.serialize(&mut *exchange_booth.data.borrow_mut())?;
 
     //allocate vaults on the fly
 
