@@ -2,10 +2,13 @@ use solana_program::{
     account_info::{next_account_info, AccountInfo}, 
     entrypoint::ProgramResult, msg, program_error::ProgramError,
     program::{invoke_signed},
+    program_pack::Pack,
     pubkey::Pubkey,
     system_instruction,
-    sysvar::{rent::Rent, Sysvar}
+    sysvar::{rent::Rent, Sysvar},
 };
+
+use spl_token::state::{Account};
 
 use crate::{
     error::ExchangeBoothError,
@@ -35,6 +38,8 @@ pub fn process(
     let oracle = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
+    let mint_a = next_account_info(account_info_iter)?;
+    let mint_b = next_account_info(account_info_iter)?;
 
     if !admin.is_signer {
         return Err(ExchangeBoothError::AccountMustBeSigner.into())
@@ -44,11 +49,13 @@ pub fn process(
         return Err(ExchangeBoothError::AccountMustBeWritable.into())
     }
 
+    // TODO: any more checks?
+
     let (generated_vault_a_pda_key, bump_seed_a) = Pubkey::find_program_address(
         &[
             admin.key.as_ref(),
             exchange_booth.key.as_ref(),
-            // exchange_booth.mint.as_ref(),  TODO: get mint a from ExchangeBooth once defined
+            mint_a.key.as_ref()
         ],
         program_id,
     );
@@ -61,7 +68,7 @@ pub fn process(
         &[
             admin.key.as_ref(),
             exchange_booth.key.as_ref(),
-            // exchange_booth.mint.as_ref(),  TODO: get mint b from ExchangeBooth once defined
+            mint_b.key.as_ref()
         ],
         program_id,
     );
@@ -70,17 +77,17 @@ pub fn process(
         return Err(ExchangeBoothError::InvalidAccountAddress.into())
     }
 
-    // TODO -- use token program invocations instead of system program for the vaults
-    // Now we allocate buffer_size to the vault a pda.
+    // Now we allocate a pda initialized with the length of the token program struct
+    // and assign the owner to the token program
     invoke_signed(
         &system_instruction::create_account(
             admin.key,
             vault_a.key,
             Rent::get()?.minimum_balance(0),
-            0 as u64,
-            program_id,
+            Account::LEN as u64, 
+            token_program.key, // token program needs to be the owner of the vaults
         ),
-        &[admin.clone(), vault_a.clone(), token_program.clone()],
+        &[admin.clone(), vault_a.clone(), system_program.clone()],
         &[&[admin.key.as_ref(), exchange_booth.key.as_ref(), mint_a.key.as_ref(),  &[bump_seed_a]]],
     )?;
 
@@ -90,11 +97,11 @@ pub fn process(
             admin.key,
             vault_b.key,
             Rent::get()?.minimum_balance(0),
-            0 as u64,
-            program_id,
+            Account::LEN as u64,
+            token_program.key, // token program needs to be the owner of the vaults
         ),
         &[admin.clone(), vault_a.clone(), system_program.clone()],
-        &[&[admin.key.as_ref(), exchange_booth.key.as_ref(), token_program.key.as_ref(),  &[bump_seed_b]]],
+        &[&[admin.key.as_ref(), exchange_booth.key.as_ref(), mint_b.key.as_ref(),  &[bump_seed_b]]],
     )?;
 
     //allocate vaults on the fly
