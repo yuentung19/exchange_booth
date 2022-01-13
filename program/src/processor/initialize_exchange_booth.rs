@@ -40,6 +40,7 @@ pub fn process(
     let admin = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
+    let rent_account = next_account_info(account_info_iter)?;
 
     if !admin.is_signer {
         msg!("error: Admin must be signer");
@@ -98,6 +99,19 @@ pub fn process(
         &[&[admin.key.as_ref(), exchange_booth.key.as_ref(), mint_a.key.as_ref(),  &[bump_seed_a]]]
     )?;
 
+    msg!("Passed invoked_signed");
+    invoke(
+        &spl_token::instruction::initialize_account(
+            &token_program.key,
+            &vault_a.key,
+            &mint_a.key,
+            &vault_a.key, // trick -- avoid more pda's by doing this
+        )?,
+        &[token_program.clone(), vault_a.clone(), mint_a.clone(), rent_account.clone()]
+    )?;
+    msg!("Passed CPI call A");
+
+
     // repeat for vault b
     invoke_signed(
         &system_instruction::create_account(
@@ -109,6 +123,16 @@ pub fn process(
         ),
         &[admin.clone(), vault_b.clone(), system_program.clone()],
         &[&[admin.key.as_ref(), exchange_booth.key.as_ref(), mint_b.key.as_ref(),  &[bump_seed_b]]]
+    )?;
+
+    invoke(
+        &spl_token::instruction::initialize_account(
+            &token_program.key,
+            &vault_b.key,
+            &mint_b.key,
+            &vault_b.key,
+        )?,
+        &[token_program.clone(), vault_b.clone(), mint_b.clone(), vault_b.clone(), rent_account.clone()]
     )?;
 
     // encode the exchange booth into a struct and pass that in as the data to the exchange booth account

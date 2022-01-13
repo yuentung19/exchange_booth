@@ -8,6 +8,8 @@ pub struct ExchangeRate {
     pub b_to_a: f64
 }
 
+pub const EXCHANGE_BOOTH_LEN: usize = size_of::<Pubkey>() * 4;
+
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
 pub struct ExchangeBooth {
     pub admin: Pubkey,
