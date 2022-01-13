@@ -4,6 +4,8 @@ use thiserror::Error;
 
 #[derive(Error, Debug, Copy, Clone, FromPrimitive, PartialEq)]
 pub enum ExchangeBoothError {
+    #[error("Account must be signer.")]
+    AccountMustBeSigner,
     #[error("Account must be writable.")]
     AccountMustBeWritable,
     #[error("Account not initialized.")]
