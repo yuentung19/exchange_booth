@@ -28,8 +28,8 @@ pub fn process(
     let exchange_rate = ExchangeRate::try_from_slice(&oracle_account_info.data.borrow())
         .map_err(|_| ExchangeBoothError::InvalidAccountData)?;
 
-    exchange_rate.a_to_b = exchange_rate_a_to_b;
-    exchange_rate.b_to_a = 1.0 / exchange_rate_a_to_b;
+    // exchange_rate.a_to_b = exchange_rate_a_to_b;
+    // exchange_rate.b_to_a = 1.0 / exchange_rate_a_to_b;
 
     exchange_rate.serialize(&mut *oracle_account_info.data.borrow_mut())?;
 
