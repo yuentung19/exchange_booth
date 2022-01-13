@@ -36,9 +36,9 @@ impl Processor {
                 msg!("Instruction: Withdraw");
                 withdraw::process(program_id, accounts)?;
             }
-            ExchangeBoothInstruction::Exchange { } => {
+            ExchangeBoothInstruction::Exchange { amount } => {
                 msg!("Instruction: Withdraw");
-                exchange::process(program_id, accounts)?;
+                exchange::process(program_id, accounts, amount)?;
             }
             ExchangeBoothInstruction::CloseExchangeBooth { } => {
                 msg!("Instruction: CloseExchangeBooth");

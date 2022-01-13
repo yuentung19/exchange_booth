@@ -20,18 +20,22 @@ pub enum ExchangeBoothInstruction {
     Withdraw {
         // TODO
     },
-    // 1. exchange booth
-    // oracle (this is in EB, but you need the actual contents)
-    // vault a [W] (this is in EB, but you need the actual contents)
-    // vault b [W] (this is in EB, but you need the actual contents)
-    // mint a (for decimal places)
-    // mint b (for decimal places)
-    // customer [S]
-    // customer token program [W]
-    // pda signer (not signable since to sign things, you need a private key, which doesnt exist for PDA)
-    // token program
+    /// Accounts:
+    /// | index | writable | signer | description                                                                                         |
+    /// |-------|----------|--------|-----------------------------------------------------------------------------------------------------|
+    /// | 0     | ❌       | ❌     | exchange_booth: contains the ExchangeBooth struct in the data
+    /// | 1     | ❌       | ❌     | oracle: contains the ExchangeRate struct in the data
+    /// | 2     | ✅       | ❌     | vault_A: account that the ExchangeBooth::vault_a address points to (PDA, this is to debit/credit)
+    /// | 3     | ✅       | ❌     | vault_B: account that the ExchangeBooth::vault_b address points to (PDA, this is to debit/credit)
+    /// | 4     | ❌       | ❌     | mint_A: mint address of token A (required to get decimal places)
+    /// | 5     | ❌       | ❌     | mint_B: mint address of token B (required to get decimal places)
+    /// | 6     | ❌       | ✅     | customer: needed to be the signer of the transaction to debit customer token account
+    /// | 7     | ✅       | ❌     | customer_from_token_account: the token account that the exchange program will DEBIT
+    /// | 8     | ✅       | ❌     | customer_to_token_account: the token account that the exchange program will CREDIT
+    /// | 9     | ❌       | ❌     | system_program
+    /// | 10    | ❌       | ❌     | token_program
     Exchange {
-        // TODO
+        amount: f64,
     },
     CloseExchangeBooth {
         // TODO
