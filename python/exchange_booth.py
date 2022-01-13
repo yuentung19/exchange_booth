@@ -55,37 +55,36 @@ def init_exchange_booth(params: InitExchangeBoothParams) -> TransactionInstructi
 
 def main_init(args, client) -> Tuple[Transaction, List[PublicKey]]:
     program_id = PublicKey(args.program_id)
-    fee_payer = Keypair()
+    admin = Keypair()
 
     print("Requesting Airdrop of 2 SOL...")
-    client.request_airdrop(fee_payer.public_key, int(2e9))
+    client.request_airdrop(admin.public_key, int(2e9))
     print("Airdrop received")
 
-    admin = Keypair()
     oracle = Keypair()
     exchange_booth = Keypair()
 
     init_ixs = []
     # create accounts and allocate space
-    for _account, _space in [(admin, 0), (oracle, 16), (exchange_booth, 32 * 4)]:
+    for _account, _space in [(oracle, 16), (exchange_booth, 32 * 4)]:
         init_ixs.append(
             create_account(
                 CreateAccountParams(
-                    from_pubkey=fee_payer.public_key,
+                    from_pubkey=admin.public_key,
                     new_account_pubkey=_account.public_key,
-                    lamports=client.get_minimum_balance_for_rent_exemption(40)[
+                    lamports=client.get_minimum_balance_for_rent_exemption(2022)[
                         "result"
                     ],
                     space=_space,
-                    program_id=SYS_PROGRAM_ID,
+                    program_id=program_id,
                 )
             )
         )
 
     token_a = Token.create_mint(
         client,
-        fee_payer,
-        fee_payer.public_key,
+        admin,
+        admin.public_key,
         6,
         TOKEN_PROGRAM_ID,
     )
@@ -93,8 +92,8 @@ def main_init(args, client) -> Tuple[Transaction, List[PublicKey]]:
 
     token_b = Token.create_mint(
         client,
-        fee_payer,
-        fee_payer.public_key,
+        admin,
+        admin.public_key,
         6,
         TOKEN_PROGRAM_ID,
     )
@@ -135,7 +134,7 @@ def main_init(args, client) -> Tuple[Transaction, List[PublicKey]]:
         )
     )
 
-    signers = [fee_payer, admin, oracle, exchange_booth]
+    signers = [admin, oracle, exchange_booth]
 
     return init_ixs, signers
 
