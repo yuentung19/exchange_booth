@@ -11,6 +11,7 @@ pub mod deposit;
 pub mod exchange;
 pub mod initialize_exchange_booth;
 pub mod withdraw;
+pub mod update_oracle_exchange_rate;
 
 pub struct Processor {}
 
@@ -43,6 +44,10 @@ impl Processor {
             ExchangeBoothInstruction::CloseExchangeBooth { } => {
                 msg!("Instruction: CloseExchangeBooth");
                 close_exchange_booth::process(program_id, accounts)?;
+            }
+            ExchangeBoothInstruction::UpdateOracleExchangeRate {exchange_rate_a_to_b } => {
+                msg!("Instruction: UpdateOracleExchangeRate");
+                update_oracle_exchange_rate::process(accounts, exchange_rate_a_to_b)?;
             }
         }
 
