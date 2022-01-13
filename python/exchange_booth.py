@@ -10,6 +10,7 @@ from solana.rpc.types import TxOpts
 from solana.rpc.commitment import Confirmed
 from solana.system_program import CreateAccountParams, create_account, SYS_PROGRAM_ID
 from solana.transaction import AccountMeta, TransactionInstruction, Transaction
+from solana.sysvar import SYSVAR_RENT_PUBKEY
 
 from spl.token.client import Token
 from spl.token.constants import TOKEN_PROGRAM_ID
@@ -47,6 +48,7 @@ def init_exchange_booth(params: InitExchangeBoothParams) -> TransactionInstructi
             AccountMeta(pubkey=params.admin, is_signer=True, is_writable=False),
             AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
             AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
+            AccountMeta(pubkey=SYSVAR_RENT_PUBKEY, is_signer=False, is_writable=False),
         ],
         program_id=params.program_id,
         data=data,
