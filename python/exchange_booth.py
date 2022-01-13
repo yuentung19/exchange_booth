@@ -25,7 +25,9 @@ class InitExchangeBoothParams(NamedTuple):
     exchange_booth: PublicKey  # [W]
     oracle: PublicKey
     vault_a: PublicKey  # [W]
+    mint_a: PublicKey
     vault_b: PublicKey  # [W]
+    mint_b: PublicKey
 
 
 def init_exchange_booth(params: InitExchangeBoothParams) -> TransactionInstruction:
@@ -34,15 +36,17 @@ def init_exchange_booth(params: InitExchangeBoothParams) -> TransactionInstructi
 
     return TransactionInstruction(
         keys=[
-            AccountMeta(pubkey=params.admin, is_signer=True, is_writable=False),
             AccountMeta(
                 pubkey=params.exchange_booth, is_signer=False, is_writable=True
             ),
             AccountMeta(pubkey=params.oracle, is_signer=False, is_writable=False),
             AccountMeta(pubkey=params.vault_a, is_signer=False, is_writable=True),
             AccountMeta(pubkey=params.vault_b, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
+            AccountMeta(pubkey=params.mint_a, is_signer=False, is_writable=False),
+            AccountMeta(pubkey=params.mint_b, is_signer=False, is_writable=False),
+            AccountMeta(pubkey=params.admin, is_signer=True, is_writable=False),
             AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
+            AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
         ],
         program_id=params.program_id,
         data=data,
@@ -124,7 +128,9 @@ def main_init(args, client) -> Tuple[Transaction, List[PublicKey]]:
                 exchange_booth=exchange_booth.public_key,
                 oracle=oracle.public_key,
                 vault_a=vault_a,
+                mint_a=mint_a,
                 vault_b=vault_b,
+                mint_b=mint_b,
             )
         )
     )
