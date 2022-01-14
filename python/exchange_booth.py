@@ -152,7 +152,7 @@ def init(program_id, client) -> CommandParams:
         client,
         admin_kp,
         admin_kp.public_key,
-        6,
+        9,
         TOKEN_PROGRAM_ID,
     )
     mint_b = token_b.pubkey
@@ -287,7 +287,7 @@ def exchange(
         from_token,
         customer_from_token_account,
         admin_kp,
-        amount_to_exchange
+        amount_to_exchange * 10000000000
     )
 
     program_id = PublicKey(program_id)

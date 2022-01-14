@@ -5,7 +5,7 @@ use solana_program::{
     program_error::ProgramError,
     pubkey::Pubkey,
     program_pack::Pack,
-    program::{invoke_signed},
+    program::{invoke_signed, invoke},
 };
 
 use crate::{
@@ -104,6 +104,7 @@ pub fn process(
         msg!("ExchangeBooth vault B pubkey not equal to vault B pub key");
         return Err(ProgramError::InvalidArgument);
     }
+    
 
     //figure out the direction
     let mut exchange_from_a: bool = false;
@@ -145,20 +146,27 @@ pub fn process(
         amount_small
     )?;
     msg!("Transfering token {}", from_token);
-    
-    /*
-    invoke_signed(
+    invoke(
         &transfer_from_customer_to_vault_ix,
         &[
-            pdas_temp_token_account.clone(),
-            takers_token_to_receive_account.clone(),
-            pda_account.clone(),
+            customer.clone(),
+            customer_from_token_acc.clone(),
+            if exchange_from_a {vault_a.clone()} else{vault_b.clone()},
             token_program.clone(),
-        ],
-        &[&[&b"escrow"[..], &[bump_seed]]],
+        ]
     )?;
-    */
-
+   
+    
+    //generate PDA for the bump seed
+    let (_, bump_seed) = Pubkey::find_program_address(
+        &[
+            b"exchange_booth",
+            exchange_booth.admin.as_ref(),
+            exchange_booth_acc.key.as_ref(),
+            if exchange_from_a {mint_b_acc.key.as_ref()} else{mint_a_acc.key.as_ref()},
+        ],
+        program_id,
+    );
     //debit other vault, and credit the customer's TO TOKEN account
     let transfer_vault_to_to_customer_ix = spl_token::instruction::transfer(
         token_program.key,
@@ -169,6 +177,22 @@ pub fn process(
         result_small
     )?;
     msg!("Transfering token {}", to_token);
+    invoke_signed(
+        &transfer_vault_to_to_customer_ix,
+        &[
+            customer.clone(),
+            customer_to_token_acc.clone(),
+            if exchange_from_a {vault_b.clone()} else{vault_a.clone()},
+            token_program.clone(),
+        ],
+        &[&[
+            b"exchange_booth",
+            exchange_booth.admin.as_ref(),
+            exchange_booth_acc.key.as_ref(),
+            if exchange_from_a {mint_b_acc.key.as_ref()} else{mint_a_acc.key.as_ref()},
+            &[bump_seed]
+        ]],
+    )?;
 
 
     //spl_token::instruction::initialize_account(token_program_id: &Pubkey, account_pubkey: &Pubkey, mint_pubkey: &Pubkey, owner_pubkey: &Pubkey)
