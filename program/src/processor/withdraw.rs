@@ -21,6 +21,7 @@ pub fn process(
     accounts: &[AccountInfo],
     amount: u64
 ) -> ProgramResult {
+    msg!("hello");
     let account_info_iter = &mut accounts.iter();
     let exchange_booth = next_account_info(account_info_iter)?;
     let target_vault = next_account_info(account_info_iter)?;
@@ -45,6 +46,10 @@ pub fn process(
     let target_vault_data = &mut target_vault.data.borrow_mut();
     let deserialized_eb = ExchangeBooth::try_from_slice(exchange_booth_data).unwrap();
     msg!("Passed deserialize of ExchangeBooth!");
+    msg!("bump seed: {}", target_vault_data[0]);
+    msg!("admin acc: {}", admin_account.key);
+    msg!("exchange acc: {}", exchange_booth.key);
+    msg!("mint acc: {}", mint_account.key);
     let (generated_vault_pda_key, bump_seed) = Pubkey::find_program_address(
         &[
             b"exchange_booth",
@@ -54,10 +59,13 @@ pub fn process(
         ],
         program_id,
     );
+    msg!("generated bump seed: {}", bump_seed);
     if *target_vault.key != deserialized_eb.vault_a && *target_vault.key != deserialized_eb.vault_b {
         msg!("Target vault is not in exchange booth!");
         return Err(ExchangeBoothError::InvalidAccountAddress.into())
     } 
+    msg!("generated vault pda: {}", generated_vault_pda_key);
+    msg!("target_vault_key: {}", *target_vault.key);
     if generated_vault_pda_key != *target_vault.key || bump_seed != target_vault_data[0] {
         msg!("Target vault PDA key mismatch, check your seeds!");
         return Err(ExchangeBoothError::InvalidAccountAddress.into())
