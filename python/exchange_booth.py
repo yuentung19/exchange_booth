@@ -126,6 +126,7 @@ def init(program_id, client) -> CommandParams:
     # create PDA for 'vault_a'
     vault_a, _ = PublicKey.find_program_address(
         [
+            bytes("exchange_booth"),
             bytes(admin.public_key),
             bytes(exchange_booth.public_key),
             bytes(mint_a),
@@ -136,6 +137,7 @@ def init(program_id, client) -> CommandParams:
     # create PDA for 'vault_b'
     vault_b, _ = PublicKey.find_program_address(
         [
+            bytes("exchange_booth"),
             bytes(admin.public_key),
             bytes(exchange_booth.public_key),
             bytes(mint_b),

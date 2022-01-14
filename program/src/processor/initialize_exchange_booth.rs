@@ -61,6 +61,7 @@ pub fn process(
 
     let (generated_vault_a_pda_key, bump_seed_a) = Pubkey::find_program_address(
         &[
+            b"exchange_booth",
             admin.key.as_ref(),
             exchange_booth.key.as_ref(),
             mint_a.key.as_ref()
@@ -74,6 +75,7 @@ pub fn process(
 
     let (generated_vault_b_pda_key, bump_seed_b) = Pubkey::find_program_address(
         &[
+            b"exchange_booth",
             admin.key.as_ref(),
             exchange_booth.key.as_ref(),
             mint_b.key.as_ref()
