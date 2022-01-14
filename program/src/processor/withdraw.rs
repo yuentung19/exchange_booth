@@ -2,10 +2,11 @@ use solana_program::{
     account_info::{next_account_info, AccountInfo}, 
     entrypoint::ProgramResult, msg,
     pubkey::Pubkey,
+    program_pack::{Pack},
     program::{invoke, invoke_signed},
 };
 
-use spl_token::state::{Account};
+use spl_token::state::{Account, Mint};
 
 use crate::{
     error::ExchangeBoothError,
@@ -23,7 +24,7 @@ pub fn process(
     let account_info_iter = &mut accounts.iter();
     let exchange_booth = next_account_info(account_info_iter)?;
     let target_vault = next_account_info(account_info_iter)?;
-    let mint = next_account_info(account_info_iter)?;
+    let mint_account = next_account_info(account_info_iter)?;
     let user_token_account = next_account_info(account_info_iter)?;
     let admin_account = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
@@ -49,7 +50,7 @@ pub fn process(
             b"exchange_booth",
             admin_account.key.as_ref(),
             exchange_booth.key.as_ref(),
-            mint.key.as_ref()
+            mint_account.key.as_ref()
         ],
         program_id,
     );
@@ -63,17 +64,32 @@ pub fn process(
     }
     msg!("Passed PDA checks");
     // TODO: Does withdraw fail if amount is not enough? 
+    // invoke_signed(
+    //     &spl_token::instruction::transfer(
+    //         &token_program.key,
+    //         &target_vault.key,
+    //         &user_token_account.key,
+    //         &target_vault.key,
+    //         &[],
+    //         amount
+    //     ),
+    //     &[token_program.clone(), target_vault.clone(), user_token_account.clone(), admin_account.clone()],
+    //     &[&[b"exchange_booth", admin_account.key.as_ref(), exchange_booth.key.as_ref(), mint.key.as_ref()]]
+    // )?;
+    let mint = Mint::unpack(&mint_account.data.borrow_mut())?;
     invoke_signed(
-        &spl_token::instruction::transfer(
+        &spl_token::instruction::transfer_checked(
             &token_program.key,
             &target_vault.key,
+            &mint_account.key,
             &user_token_account.key,
             &target_vault.key,
             &[],
-            amount
+            amount,
+            mint.decimals
         )?,
-        &[token_program.clone(), target_vault.clone(), user_token_account.clone(), admin_account.clone()],
-        &[&[b"exchange_booth", admin_account.key.as_ref(), exchange_booth.key.as_ref(), mint.key.as_ref()]]
+        &[token_program.clone(), target_vault.clone(), user_token_account.clone(), admin_account.clone(), mint_account.clone()],
+        &[&[b"exchange_booth", admin_account.key.as_ref(), exchange_booth.key.as_ref(), mint_account.key.as_ref()]]
     )?;
     msg!("Passed CPI transfer call!");
     Ok(())
