@@ -30,7 +30,7 @@ pub enum ExchangeBoothInstruction {
     /// | 6     | ❌       | ✅     | admin account
     /// | 8     | ❌       | ❌     | token_program
     Withdraw {
-        // TODO
+        amount: u64
     },
     /// Accounts:
     /// | index | writable | signer | description                                                                                         |
