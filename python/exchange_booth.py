@@ -1,6 +1,7 @@
+import sys
 import argparse
 import logging
-from typing import List, NamedTuple, Tuple
+from typing import List, NamedTuple, Tuple, Optional
 import struct
 import base64
 from solana.publickey import PublicKey
@@ -14,6 +15,8 @@ from solana.sysvar import SYSVAR_RENT_PUBKEY
 
 from spl.token.client import Token
 from spl.token.constants import TOKEN_PROGRAM_ID
+
+from utils import CommandParams
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +32,12 @@ class InitExchangeBoothParams(NamedTuple):
     mint_a: PublicKey
     vault_b: PublicKey  # [W]
     mint_b: PublicKey
+
+
+class SetExchangeRateParams(NamedTuple):
+    program_id: PublicKey
+    oracle: PublicKey
+    exchange_rate_a_to_b: float
 
 
 def init_exchange_booth(params: InitExchangeBoothParams) -> TransactionInstruction:
@@ -55,8 +64,21 @@ def init_exchange_booth(params: InitExchangeBoothParams) -> TransactionInstructi
     )
 
 
-def main_init(args, client) -> Tuple[Transaction, List[PublicKey]]:
-    program_id = PublicKey(args.program_id)
+def set_exchange_rate(params: SetExchangeRateParams) -> TransactionInstruction:
+    # combine with exchange rate
+    data = b"".join(
+        [struct.pack("<B", 5), struct.pack("<d", params.exchange_rate_a_to_b)]
+    )
+
+    return TransactionInstruction(
+        keys=[AccountMeta(pubkey=params.oracle, is_signer=False, is_writable=True)],
+        program_id=params.program_id,
+        data=data,
+    )
+
+
+def init(program_id, client) -> CommandParams:
+    program_id = PublicKey(program_id)
     admin = Keypair()
 
     print("Requesting Airdrop of 2 SOL...")
@@ -66,10 +88,10 @@ def main_init(args, client) -> Tuple[Transaction, List[PublicKey]]:
     oracle = Keypair()
     exchange_booth = Keypair()
 
-    init_ixs = []
+    ixs = []
     # create accounts and allocate space
     for _account, _space in [(oracle, 16), (exchange_booth, 32 * 4)]:
-        init_ixs.append(
+        ixs.append(
             create_account(
                 CreateAccountParams(
                     from_pubkey=admin.public_key,
@@ -121,58 +143,110 @@ def main_init(args, client) -> Tuple[Transaction, List[PublicKey]]:
         program_id,
     )
 
-    init_ixs.append(
-        init_exchange_booth(
-            InitExchangeBoothParams(
-                program_id=program_id,
-                admin=admin.public_key,
-                exchange_booth=exchange_booth.public_key,
-                oracle=oracle.public_key,
-                vault_a=vault_a,
-                mint_a=mint_a,
-                vault_b=vault_b,
-                mint_b=mint_b,
-            )
-        )
+    params = InitExchangeBoothParams(
+        program_id=program_id,
+        admin=admin.public_key,
+        exchange_booth=exchange_booth.public_key,
+        oracle=oracle.public_key,
+        vault_a=vault_a,
+        mint_a=mint_a,
+        vault_b=vault_b,
+        mint_b=mint_b,
     )
 
+    ixs.append(init_exchange_booth(params))
     signers = [admin, oracle, exchange_booth]
 
-    return init_ixs, signers
+    return CommandParams(instructions=ixs, signers=signers, params=params)
+
+
+def set_rate(
+    program_id, client, exchange_rate_a_to_b: float, oracle: Optional[PublicKey] = None
+):
+    program_id = PublicKey(program_id)
+    ixs = []
+    signers = []
+    admin = Keypair()
+    print("Requesting Airdrop of 2 SOL...")
+    client.request_airdrop(admin.public_key, int(2e9))
+    print("Airdrop received")
+
+    if oracle is None:
+        print("Creating oracle account because init didn't run")
+        oracle = Keypair()
+        ixs.append(
+            create_account(
+                CreateAccountParams(
+                    from_pubkey=admin.public_key,
+                    new_account_pubkey=oracle.public_key,
+                    lamports=client.get_minimum_balance_for_rent_exemption(40)[
+                        "result"
+                    ],
+                    space=16,
+                    program_id=program_id,
+                )
+            )
+        )
+        signers.append(oracle)
+        oracle = oracle.public_key
+
+    params = SetExchangeRateParams(
+        program_id=program_id,
+        oracle=oracle,
+        exchange_rate_a_to_b=exchange_rate_a_to_b,
+    )
+
+    ixs.append(set_exchange_rate(params))
+    signers.append(admin)
+
+    return CommandParams(instructions=ixs, signers=signers, params=params)
 
 
 def main():
     client = Client("https://api.devnet.solana.com")
     parser = argparse.ArgumentParser()
-
-    subparsers = parser.add_subparsers(help="types of instruction", dest="command")
-    init_parser = subparsers.add_parser("init")
-
-    # TODO: create a loop through instructions and take user input
-
-    # arguments for init
-    init_parser.add_argument(
+    parser.add_argument(
         "program_id",
         help="Devnet program ID (base58 encoded string) of the deployed Echo Program",
     )
-
     args = parser.parse_args()
+    ixs_supported = ("init", "set_rate", "exit")
 
-    if args.command == "init":
-        ixs, signers = main_init(args, client)
-    else:
-        raise RuntimeError(f"{args.command} not supported yet")
+    command_params = {}
 
-    result = client.send_transaction(
-        Transaction().add(*(ix for ix in ixs)),
-        *signers,
-        opts=TxOpts(
-            skip_preflight=True,
-        ),
-    )
-    tx_hash = result["result"]
-    client.confirm_transaction(tx_hash, commitment="confirmed")
-    print(f"https://explorer.solana.com/tx/{tx_hash}?cluster=devnet")
+    while True:
+        command_input = input(f"Enter command from {ixs_supported}:\n")
+        if command_input == "init":
+            _params = init(args.program_id, client)
+            command_params["init"] = _params
+
+        elif command_input == "set_rate":
+            try:
+                _oracle = command_params["init"].params.oracle
+            except KeyError:
+                print("ENTERING TESTING MODE of 'set_rate'")
+                _oracle = None
+
+            _rate = float(input(f"Enter 'exchange_rate_a_to_b':\n"))
+            _params = set_rate(args.program_id, client, _rate, _oracle)
+            command_params["set_rate"] = _params
+
+        elif command_input == "exit":
+            sys.exit(0)
+
+        else:
+            raise RuntimeError(f"{command_input} not supported yet")
+
+        result = client.send_transaction(
+            Transaction().add(*(ix for ix in _params.instructions)),
+            *_params.signers,
+            opts=TxOpts(
+                skip_preflight=True,
+            ),
+        )
+        tx_hash = result["result"]
+        client.confirm_transaction(tx_hash, commitment="confirmed")
+        print(f"https://explorer.solana.com/tx/{tx_hash}?cluster=devnet")
 
 
 if __name__ == "__main__":

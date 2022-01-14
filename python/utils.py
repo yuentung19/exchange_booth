@@ -1,6 +1,6 @@
 import argparse
 import time
-from typing import NamedTuple
+from typing import List, NamedTuple
 import struct
 import base64, base58
 from solana.publickey import PublicKey
@@ -23,6 +23,12 @@ from spl.token.instructions import (
 )
 
 RPC_URL = "https://api.devnet.solana.com"
+
+
+class CommandParams(NamedTuple):
+    instructions: List[Transaction] = None
+    signers: List[Keypair] = None
+    params: NamedTuple = None
 
 
 def get_rent(size):
