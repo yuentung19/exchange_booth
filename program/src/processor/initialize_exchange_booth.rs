@@ -16,7 +16,7 @@ use crate::{
     state::ExchangeBooth,
 };
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::{BorshSerialize};
 
 
 pub fn process(
@@ -98,7 +98,7 @@ pub fn process(
             token_program.key // token program needs to be the owner of the vaults
         ),
         &[admin.clone(), vault_a.clone(), system_program.clone()],
-        &[&[admin.key.as_ref(), exchange_booth.key.as_ref(), mint_a.key.as_ref(),  &[bump_seed_a]]]
+        &[&[b"exchange_booth", admin.key.as_ref(), exchange_booth.key.as_ref(), mint_a.key.as_ref(),  &[bump_seed_a]]]
     )?;
 
     msg!("Passed invoked_signed");
@@ -124,7 +124,7 @@ pub fn process(
             token_program.key
         ),
         &[admin.clone(), vault_b.clone(), system_program.clone()],
-        &[&[admin.key.as_ref(), exchange_booth.key.as_ref(), mint_b.key.as_ref(),  &[bump_seed_b]]]
+        &[&[b"exchange_booth", admin.key.as_ref(), exchange_booth.key.as_ref(), mint_b.key.as_ref(),  &[bump_seed_b]]]
     )?;
 
     invoke(

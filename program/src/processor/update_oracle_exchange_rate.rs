@@ -33,5 +33,7 @@ pub fn process(
 
     exchange_rate.serialize(&mut *oracle_account_info.data.borrow_mut())?;
 
+    msg!("Oracle created at: {}", oracle_account_info.key);
+
     Ok(())
 }

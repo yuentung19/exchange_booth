@@ -4,7 +4,8 @@ use solana_program::{
     msg, 
     program_error::ProgramError,
     pubkey::Pubkey,
-    program_pack::Pack
+    program_pack::Pack,
+    program::{invoke_signed},
 };
 
 use crate::{
@@ -15,6 +16,7 @@ use crate::{
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use spl_token::state::Account as TokenAccount;
+use spl_token::state::Mint as Mint;
 
 
 pub fn process(
@@ -28,8 +30,8 @@ pub fn process(
     let oracle = next_account_info(account_info_iter)?;
     let vault_a = next_account_info(account_info_iter)?;
     let vault_b = next_account_info(account_info_iter)?;
-    let mint_a = next_account_info(account_info_iter)?;
-    let mint_b = next_account_info(account_info_iter)?;
+    let mint_a_acc = next_account_info(account_info_iter)?;
+    let mint_b_acc = next_account_info(account_info_iter)?;
     let customer = next_account_info(account_info_iter)?;
     let customer_from_token_acc = next_account_info(account_info_iter)?;
     let customer_to_token_acc = next_account_info(account_info_iter)?;
@@ -41,6 +43,8 @@ pub fn process(
     let exchange_rate = ExchangeRate::try_from_slice(&oracle.data.borrow())?;
     let vault_a_token_account = TokenAccount::unpack_from_slice(&vault_a.try_borrow_data()?)?;
     let vault_b_token_account = TokenAccount::unpack_from_slice(&vault_b.try_borrow_data()?)?;
+    let mint_a = Mint::unpack_from_slice(&mint_a_acc.try_borrow_data()?)?;
+    let mint_b = Mint::unpack_from_slice(&mint_b_acc.try_borrow_data()?)?;
     let customer_from_token_account = TokenAccount::unpack_from_slice(&customer_from_token_acc.try_borrow_data()?)?;
     let customer_to_token_account = TokenAccount::unpack_from_slice(&customer_to_token_acc.try_borrow_data()?)?;
 
@@ -67,11 +71,11 @@ pub fn process(
     }
 
     //checking the mint accounts
-    if vault_a_token_account.mint != *mint_a.key {
+    if vault_a_token_account.mint != *mint_a_acc.key {
         msg!("Vault A mint address is not equal to mint A");
         return Err(ProgramError::InvalidArgument);
     }
-    if vault_b_token_account.mint != *mint_b.key {
+    if vault_b_token_account.mint != *mint_b_acc.key {
         msg!("Vault B mint address is not equal to mint B");
         return Err(ProgramError::InvalidArgument);
     }
@@ -79,14 +83,16 @@ pub fn process(
         msg!("Customer_From_Mint is equal to Customer_To_Mint");
         return Err(ProgramError::InvalidArgument);
     }
-    if [*mint_a.key, *mint_b.key].contains(&customer_from_token_account.mint) {
+    /*
+    if [mint_a_acc.key, mint_b_acc.key].contains(&&customer_from_token_account.mint) {
         msg!("Customer_From_Mint is not one of mint A or mint B");
         return Err(ProgramError::InvalidArgument);
     }
-    if [*mint_a.key, *mint_b.key].contains(&customer_to_token_account.mint) {
+    if [mint_a_acc.key, mint_b_acc.key].contains(&&customer_to_token_account.mint) {
         msg!("Customer_To_Mint is not one of mint A or mint B");
         return Err(ProgramError::InvalidArgument);
     }
+    */
 
 
     //check vaults in Exchange Booth are the vaults passed in to the Accounts
@@ -101,19 +107,70 @@ pub fn process(
 
     //figure out the direction
     let mut exchange_from_a: bool = false;
-    if customer_from_token_account.mint == *mint_a.key {
+    let mut rate = exchange_rate.b_to_a;
+    let mut from_decimal = mint_b.decimals;
+    let mut from_token = "B";
+    let mut to_decimal = mint_a.decimals;
+    let mut to_token = "A";
+
+    if customer_from_token_account.mint == *mint_a_acc.key {
         exchange_from_a = true;
+        rate = exchange_rate.a_to_b;
+        from_decimal = mint_a.decimals;
+        from_token = "A";
+        to_decimal = mint_b.decimals;
+        to_token = "B";
     }
 
+    let result = amount * rate;
+    let amount_small: u64 = (amount * f64::powf(10., from_decimal.into())) as u64;
+    let result_small: u64 = (result * f64::powf(10., to_decimal.into())) as u64;
+    msg!("Customer is exchanging {} ({}) token {} for {} ({}) token {} with exchange rate {}",
+        amount,
+        amount_small,
+        from_token,
+        result,
+        result_small,
+        to_token,
+        rate
+    );
 
-    //a_in d_in
-    //price decimals
-    //a_out d_out
+    //debit customers FROM TOKEN account, credit the corresponding vault
+    let transfer_from_customer_to_vault_ix = spl_token::instruction::transfer(
+        token_program.key,
+        customer_from_token_acc.key,
+        if exchange_from_a {&exchange_booth.vault_a} else {&exchange_booth.vault_b},
+        &customer.key,
+        &[&customer.key],
+        amount_small
+    )?;
+    msg!("Transfering token {}", from_token);
+    
+    /*
+    invoke_signed(
+        &transfer_from_customer_to_vault_ix,
+        &[
+            pdas_temp_token_account.clone(),
+            takers_token_to_receive_account.clone(),
+            pda_account.clone(),
+            token_program.clone(),
+        ],
+        &[&[&b"escrow"[..], &[bump_seed]]],
+    )?;
+    */
 
-    //Gotchas:
-    //1. numerical overflow
-    //2. rounding
+    //debit other vault, and credit the customer's TO TOKEN account
+    let transfer_vault_to_to_customer_ix = spl_token::instruction::transfer(
+        token_program.key,
+        if exchange_from_a {&exchange_booth.vault_b} else {&exchange_booth.vault_a},
+        customer_to_token_acc.key,
+        if exchange_from_a {&exchange_booth.vault_b} else {&exchange_booth.vault_a},
+        &[if exchange_from_a {&exchange_booth.vault_b} else {&exchange_booth.vault_a}],
+        result_small
+    )?;
+    msg!("Transfering token {}", to_token);
 
-    //oracle should provide price info (price decimals)
+
+    //spl_token::instruction::initialize_account(token_program_id: &Pubkey, account_pubkey: &Pubkey, mint_pubkey: &Pubkey, owner_pubkey: &Pubkey)
     Ok(())
 }
