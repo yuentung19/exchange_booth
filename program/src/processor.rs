@@ -33,9 +33,9 @@ impl Processor {
                 msg!("Instruction: Deposit"); //not actually necessary since we can just use a direct token transfer
                 deposit::process(program_id, accounts)?;
             }
-            ExchangeBoothInstruction::Withdraw { } => {
+            ExchangeBoothInstruction::Withdraw { amount } => {
                 msg!("Instruction: Withdraw");
-                withdraw::process(program_id, accounts)?;
+                withdraw::process(program_id, accounts, amount)?;
             }
             ExchangeBoothInstruction::Exchange { amount } => {
                 msg!("Instruction: Exchange");

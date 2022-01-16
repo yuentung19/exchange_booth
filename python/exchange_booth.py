@@ -1,3 +1,4 @@
+from distutils import command
 import sys
 import argparse
 import logging
@@ -234,7 +235,7 @@ def set_rate(
 
     ixs.append(set_exchange_rate(params))
     signers.append(admin_kp)
-
+    print(f"set_rate signers {signers}")
     return CommandParams(instructions=ixs, signers=signers, params=params)
 
 def deposit(
@@ -256,6 +257,57 @@ def deposit(
         admin_kp,
         amount*1000000
     )
+
+def withdraw(
+    chosen_token,
+    program_id,
+    amount,
+    exchange_booth_kp,
+    command_params
+):
+    data_withdraw= b"".join([struct.pack("<B", 2), struct.pack("<d", amount)])
+    mint = command_params.mint_a if chosen_token == 'a' else command_params.mint_b
+    token_to_withdraw = command_params.token_a if chosen_token == 'a' else command_params.token_b
+    target_vault = command_params.vault_a if chosen_token == 'a' else command_params.vault_b
+    print(f'A={command_params.vault_a}, B={command_params.vault_b}, target_vault={target_vault}')
+
+    # for purposes of this program, just generate a new token account every time withdraw is called
+    customer_to_token_account: PublicKey = token_to_withdraw.create_account(customer_kp.public_key)
+    print(f'customer_to_token_account={customer_to_token_account}')
+
+
+    trans_ix = TransactionInstruction(
+        keys=[
+            AccountMeta(
+                pubkey=command_params.exchange_booth, is_signer=False, is_writable=True
+            ),
+            AccountMeta(pubkey=target_vault, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=mint, is_signer=False, is_writable=False),
+            AccountMeta(pubkey=customer_to_token_account, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=admin_kp.public_key, is_signer=True, is_writable=False),
+            AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
+        ],
+        program_id=command_params.program_id,
+        data=data_withdraw,
+    )
+
+    withdraw_params = WithdrawParams(
+        program_id=program_id,
+        exchange_booth=exchange_booth_kp,
+        customer_to_token_account=customer_to_token_account,
+        admin_kp=admin_kp.public_key,
+        amount_to_withdraw=amount,
+        mint_a=command_params.mint_a,
+        mint_b=command_params.mint_b,
+        vault_a=command_params.vault_a,
+        vault_b=command_params.vault_b
+    )
+    ixs = []
+    signers = []
+    ixs.append(trans_ix)
+    signers.append(admin_kp)
+    return CommandParams(instructions=ixs, signers=signers, params=withdraw_params)
+    
 
 def exchange(
     program_id, 
@@ -378,6 +430,18 @@ def main():
                 _token_to_deposit,
                 command_params["init"].params
             )
+
+        elif command_input == "withdraw":
+            _token_to_withdraw = input("Please enter token to withdraw:\n")
+            _amount = int(input("Enter amount:\n"))
+            _params = withdraw(
+                _token_to_withdraw,
+                args.program_id,
+                _amount,
+                command_params["init"].params.exchange_booth,
+                command_params["init"].params
+            )
+            print(f"signers are {_params.signers}")
 
         elif command_input == "exit":
             sys.exit(0)

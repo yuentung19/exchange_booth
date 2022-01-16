@@ -20,8 +20,17 @@ pub enum ExchangeBoothInstruction {
     Deposit {
         // TODO
     },
+    /// Accounts:
+    /// | index | writable | signer | description                                                                                         |
+    /// |-------|----------|--------|-----------------------------------------------------------------------------------------------------|
+    /// | 0     | ❌       | ❌     | exchange_booth: contains the ExchangeBooth struct in the data
+    /// | 1     | ✅       | ❌     | target_vault: one of the booth vault addresses from which we withdraw amount 
+    /// | 2     | ❌       | ❌     | mint: mint address of withdraw token
+    /// | 3     | ✅       | ❌     | user_token_account: writable deposit address
+    /// | 4     | ❌       | ✅     | admin account
+    /// | 5     | ❌       | ❌     | token_program
     Withdraw {
-        // TODO
+        amount: f64
     },
     /// Accounts:
     /// | index | writable | signer | description                                                                                         |
