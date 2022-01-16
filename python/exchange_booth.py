@@ -47,6 +47,17 @@ class SetExchangeRateParams(NamedTuple):
     oracle: PublicKey
     exchange_rate_a_to_b: float
 
+class WithdrawParams(NamedTuple):
+    program_id: PublicKey
+    exchange_booth: PublicKey
+    customer_to_token_account: PublicKey
+    admin_kp: PublicKey
+    amount_to_withdraw: int
+    mint_a: PublicKey
+    mint_b: PublicKey
+    vault_a: PublicKey
+    vault_b: PublicKey
+
 
 class ExchangeParams(NamedTuple):
     program_id: PublicKey
@@ -373,7 +384,7 @@ def main():
         help="Devnet program ID (base58 encoded string) of the deployed Echo Program",
     )
     args = parser.parse_args()
-    ixs_supported = ("init", "set_rate", "exchange", "deposit", "exit")
+    ixs_supported = ("init", "set_rate", "exchange", "deposit", "withdraw", "exit")
 
     command_params = {}
 
