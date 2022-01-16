@@ -1,7 +1,7 @@
 # exchange_booth
 
 ### Before you begin
-* Instruction 4, CloseExchangeBooth, is currently unimplemented. 
+* Instruction 4, CloseExchangeBooth, is currently unimplemented. Deposit is implemented in the python client.
 * We tested our implementation on devnet.
 * We didn't do anything fancy like accounting for integer overflow, so expect this implementation to not work for all values. We tested with integers < 10.
 * Remember you can airdrop yourself some solana if you run out with ```solana airdrop 2``` (use either 2 or 1).
