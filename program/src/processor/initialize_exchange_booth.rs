@@ -24,13 +24,6 @@ pub fn process(
     accounts: &[AccountInfo]
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
-    // 1. admin account [S]
-    // 2. vault A [W] pda
-    // 3. vault B [W] pda
-    // 4. exchange booth [W] pda
-    // 5. oracle
-    // 6. token_program
-    // 7. system_program
     let exchange_booth = next_account_info(account_info_iter)?;
     let oracle = next_account_info(account_info_iter)?;
     let vault_a = next_account_info(account_info_iter)?;
@@ -58,7 +51,10 @@ pub fn process(
         msg!("error: vault-b not writable");
         return Err(ExchangeBoothError::AccountMustBeWritable.into())
     }
-
+    msg!("admin acc: {}", admin.key);
+    msg!("exchange acc: {}", exchange_booth.key);
+    msg!("mint acc: {}", mint_a.key);
+    msg!("vault a: {}", vault_a.key);
     let (generated_vault_a_pda_key, bump_seed_a) = Pubkey::find_program_address(
         &[
             b"exchange_booth",
